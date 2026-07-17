@@ -5,7 +5,6 @@ import messageModel from "../models/message.model.js";
 export async function sendMessage(req, res) {
     try {
         const { message, chatId } = req.body;
-        console.log("chatId:", chatId);
 
         let chat;
 
@@ -18,21 +17,10 @@ export async function sendMessage(req, res) {
                 title,
             });
         } else {
-            console.log("==================================");
-            console.log("Received chatId:", chatId);
-            console.log("req.user:", req.user);
-            console.log("req.user.id:", req.user.id);
-
-            const chatById = await chatModel.findById(chatId);
-            console.log("Chat found by ID:", chatById);
-
             chat = await chatModel.findOne({
                 _id: chatId,
                 user: req.user.id,
             });
-
-            console.log("Chat found with user:", chat);
-            console.log("==================================");
 
             if (!chat) {
                 return res.status(404).json({

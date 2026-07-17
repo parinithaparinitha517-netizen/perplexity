@@ -2,15 +2,39 @@ import userModel from "../models/user.model.js";
 import { sendMail } from "../services/mail.services.js";
 import jwt from "jsonwebtoken";
 
+const getFrontendUrl = () => (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+const getBackendUrl = () => (process.env.BACKEND_URL || "http://localhost:3000").replace(/\/$/, "");
+
+function redirectToLogin(res, verification) {
+    return res.redirect(`${getFrontendUrl()}/login?verification=${verification}`);
+}
+
 export async function registerUser(req, res, next) {
     try {
-        const { username, email, password } = req.body;
+        const username = req.body.username.trim();
+        const email = req.body.email.trim().toLowerCase();
+        const { password } = req.body;
+        const isProduction = process.env.NODE_ENV === "production";
 
         const userAlreadyExists = await userModel.findOne({
             $or: [{ email }, { username }],
         });
 
         if (userAlreadyExists) {
+            if (!isProduction && !userAlreadyExists.verified && userAlreadyExists.email === email) {
+                const token = jwt.sign(
+                    { _id: userAlreadyExists.id, email: userAlreadyExists.email },
+                    process.env.JWT_SECRET,
+                    { expiresIn: "1h" }
+                );
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Account exists but still needs verification.",
+                    verificationLink: `${getBackendUrl()}/auth/api/verify-email?token=${token}`,
+                });
+            }
+
             return res.status(409).json({
                 success: false,
                 message: "User already exists",
@@ -32,7 +56,7 @@ export async function registerUser(req, res, next) {
     { expiresIn: "1h" }
 );
 
-        const verificationLink = `http://localhost:3000/auth/api/verify-email?token=${token}`;
+        const verificationLink = `${getBackendUrl()}/auth/api/verify-email?token=${token}`;
 
         const html = `
             <h2>Verify Your Email</h2>
@@ -46,18 +70,33 @@ export async function registerUser(req, res, next) {
             <p>${verificationLink}</p>
         `;
 
-        await sendMail({
-            to: email,
-            subject: "Verify Your Email",
-            html,
-        });
+        let emailSent = true;
+
+        try {
+            await sendMail({
+                to: email,
+                subject: "Verify Your Email",
+                html,
+            });
+        } catch (mailError) {
+            if (isProduction) {
+                await userModel.findByIdAndDelete(user._id);
+                throw mailError;
+            }
+
+            emailSent = false;
+            console.warn("Email delivery failed; returning a local verification link.");
+        }
 
         const { password: _, ...safeUser } = user.toObject();
 
         return res.status(201).json({
             success: true,
-            message: "User registered successfully. Please verify your email.",
+            message: emailSent
+                ? "User registered successfully. Please verify your email."
+                : "User registered. Use the local verification link to continue.",
             data: safeUser,
+            ...(!emailSent && { verificationLink }),
         });
 
     } catch (err) {
@@ -70,83 +109,36 @@ export async function verifyemail(req, res) {
         const { token } = req.query;
 
         if (!token) {
-            return res.status(400).send(`
-                                <html>
-                                    <body>
-                                        <h1>Verification token missing</h1>
-                                        <p>The verification link is missing the required token. Please use the full link provided in your email.</p>
-                                    </body>
-                                </html>
-                        `);
+            return redirectToLogin(res, "missing");
         }
 
         let decoded;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
-            return res.status(400).send(`
-                                <html>
-                                    <body>
-                                        <h1>Invalid or expired token</h1>
-                                        <p>The verification link is invalid or has expired. Please request a new verification email.</p>
-                                    </body>
-                                </html>
-                        `);
+            return redirectToLogin(res, "invalid");
         }
 
         const user = await userModel.findOne({ email: decoded.email });
         if (!user) {
-            return res.status(404).send(`
-                                <html>
-                                    <body>
-                                        <h1>User not found</h1>
-                                        <p>No account matches this verification link.</p>
-                                    </body>
-                                </html>
-                        `);
+            return redirectToLogin(res, "not-found");
         }
 
-        user.verified = true;
-        await user.save();
+        if (!user.verified) {
+            user.verified = true;
+            await user.save();
+        }
 
-        return res.send(`
-    <html>
-        <body style="font-family: Arial, sans-serif; text-align: center; margin-top: 50px;">
-            <h1>✅ User verified successfully</h1>
-            <p>You can now continue to the login process.</p>
-
-            <a 
-                href="http://localhost:5173/login"
-                style="
-                    display: inline-block;
-                    margin-top: 20px;
-                    padding: 10px 20px;
-                    background-color: #007bff;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 5px;
-                "
-            >
-                Go to Login
-            </a>
-        </body>
-    </html>
-`);
+        return redirectToLogin(res, "success");
     } catch (err) {
         console.error('Verification error', err);
-        return res.status(500).send(`
-                        <html>
-                            <body>
-                                <h1>Server error</h1>
-                                <p>Unable to verify your account right now. Please try again later.</p>
-                            </body>
-                        </html>
-                `);
+        return redirectToLogin(res, "error");
     }
 }
 export async function loginUser(req, res, next) {
     try {
-        const { email, password } = req.body;
+        const email = req.body.email?.trim().toLowerCase();
+        const { password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({
@@ -155,12 +147,15 @@ export async function loginUser(req, res, next) {
             });
         }
 
-        const user = await userModel.findOne({ email });
+        const user = await userModel.findOne({ email }).collation({
+            locale: "en",
+            strength: 2,
+        });
 
         if (!user) {
-            return res.status(404).json({
+            return res.status(401).json({
                 success: false,
-                message: "User not found",
+                message: "Invalid email or password. Register first if you do not have an account.",
             });
         }
 

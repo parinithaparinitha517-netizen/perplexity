@@ -3,26 +3,18 @@ dotenv.config();
 
 import nodemailer from "nodemailer";
 
-const clientId = process.env.CLIENTID;
-const clientSecret = process.env.CLIENTSECRET;
-const refreshToken = process.env.REFRESHTOKEN;
 const user = process.env.USER;
+const appPassword = process.env.MAIL_PASSWORD?.replace(/\s/g, "");
 
-console.log("========== MAIL CONFIG ==========");
-console.log("USER:", user);
-console.log("CLIENTID:", clientId ? "Loaded ✅" : "Missing ❌");
-console.log("CLIENTSECRET:", clientSecret ? "Loaded ✅" : "Missing ❌");
-console.log("REFRESHTOKEN:", refreshToken ? "Loaded ✅" : "Missing ❌");
-console.log("=================================");
+if (!user || !appPassword) {
+    throw new Error("USER and MAIL_PASSWORD must be configured for email delivery");
+}
 
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        type: "OAuth2",
         user,
-        clientId,
-        clientSecret,
-        refreshToken,
+        pass: appPassword,
     },
 });
 

@@ -1,25 +1,18 @@
 {
-  "name": "perplexity",
+  "name": "perplexity-ai-workspace",
   "version": "1.0.0",
-  "main": "index.js",
-  "type": "module",
+  "private": true,
+  "description": "A full-stack AI research workspace with persistent conversations and email authentication.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx nodemon server.js"
+    "install:all": "npm install --prefix Backend && npm install --prefix frontend/project0",
+    "dev:backend": "npm run dev --prefix Backend",
+    "dev:frontend": "npm run dev --prefix frontend/project0",
+    "start": "npm start --prefix Backend",
+    "build": "npm run build --prefix frontend/project0",
+    "lint": "npm run lint --prefix frontend/project0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "bcrypt": "^6.0.0",
-    "cookie-parser": "^1.4.7",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "express-validator": "^7.3.2",
-    "json-parser": "^3.1.2",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.7.2",
-    "nodemailer": "^9.0.1"
-  }
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
 }

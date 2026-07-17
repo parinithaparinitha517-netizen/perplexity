@@ -5,13 +5,17 @@ import connectToDb from './src/config/database.js'
 import {initSocket} from './src/socket/socket.service.js'
 import Http from 'http'
 const Httpserver=Http.createServer(app)
+const port = Number(process.env.PORT) || 3000
 
 initSocket(Httpserver)
 
-connectToDb()
-app.listen(3000,()=>{
-    console.log("server is running on port 3000")
-})
-Httpserver.listen(3001,()=>{
-    console.log("socket server is running on port 3001")
-})
+try {
+    await connectToDb()
+
+    Httpserver.listen(port, () => {
+        console.log(`server and socket are running on port ${port}`)
+    })
+} catch (error) {
+    console.error('Unable to start server:', error.message)
+    process.exitCode = 1
+}

@@ -1,2 +1,23 @@
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Environment and secrets
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs and local tooling
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

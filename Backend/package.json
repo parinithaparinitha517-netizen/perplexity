@@ -1,16 +1,17 @@
 {
-  "name": "perplexity",
+  "name": "perplexity-api",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx nodemon server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js"
   },
-  "keywords": [],
+  "keywords": ["ai", "chat", "mern", "mistral", "socket.io"],
   "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
+  "description": "Express and MongoDB API for the Perplexity AI workspace",
   "dependencies": {
     "@google/genai": "^2.10.0",
     "@langchain/core": "^1.2.2",

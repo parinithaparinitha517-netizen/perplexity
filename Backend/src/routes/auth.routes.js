@@ -9,5 +9,6 @@ authRoutes.post("/login", loginValidator, loginUser);
 authRoutes.post("/logout", logoutUser);
 authRoutes.get("/verify-email", verifyemail);
 authRoutes.get('/get-me', authUser, getUser)
+authRoutes.get('/getme', authUser, getUser)
 
 export default authRoutes;
